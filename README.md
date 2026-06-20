@@ -475,19 +475,6 @@ The platform enforces the following security headers on all routes:
 
 ---
 
-## 📄 License
-
-Proprietary — All Service Moving & Storage. All rights reserved.
-
----
-
-## 🙏 Acknowledgments
-
-- **Jeffrey Grabeel** (All Service Moving) — Client
-- **Abdul Wasay** — Lead Developer
-
----
-
 <p align="center">
   Built with ❤️ using <strong>Next.js 16</strong>, <strong>React 19</strong>, <strong>TypeScript</strong>, and <strong>Tailwind CSS 4</strong><br/>
   Deployed on <strong>Cloudflare Workers</strong> at the edge 🌍
