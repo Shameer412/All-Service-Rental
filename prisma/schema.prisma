@@ -1,0 +1,367 @@
+// Prisma Schema for Truck Leasing Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum TruckType {
+  BOX_TRUCK
+  FLATBED
+  REFRIGERATED
+  DUMP_TRUCK
+  SEMI_TRUCK
+  MOVING_VAN
+}
+
+enum TruckStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  UNAVAILABLE
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  ACH
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+}
+
+// Models
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  role              UserRole
+  status            UserStatus        @default(PENDING)
+  avatar            String?
+  emailVerified     DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  customerProfile   CustomerProfile?
+  vendorProfile     VendorProfile?
+  trucksOwned       Truck[]           @relation("VendorTrucks")
+  contractsAsCustomer Contract[]      @relation("CustomerContracts")
+  contractsAsVendor Contract[]        @relation("VendorContracts")
+  payments          Payment[]
+
+  @@index([email])
+  @@index([role, status])
+}
+
+model CustomerProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  creditScore       Int?
+  creditCheckDate   DateTime?
+  driversLicense    String
+  licenseState      String
+  licenseExpiry     DateTime
+
+  // Preferences (JSON)
+  budgetMin         Float?
+  budgetMax         Float?
+  preferredTypes    String[]
+  preferredLocations String[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model VendorProfile {
+  id                  String              @id @default(cuid())
+  userId              String              @unique
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName         String
+  businessLicense     String
+  dotNumber           String?
+  mcNumber            String?
+
+  // Insurance Info
+  insuranceProvider   String
+  insurancePolicyNumber String
+  insuranceExpiry     DateTime
+  insuranceCoverage   Float
+
+  // Verification
+  highwayVerified     Boolean             @default(false)
+  verificationDate    DateTime?
+
+  // Stats
+  rating              Float               @default(0)
+  totalRentals        Int                 @default(0)
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  maintenanceRecords  MaintenanceRecord[]
+  commissions         Commission[]
+
+  @@index([userId])
+  @@index([highwayVerified])
+}
+
+model Truck {
+  id                String            @id @default(cuid())
+  vendorId          String
+  vendor            User              @relation("VendorTrucks", fields: [vendorId], references: [id], onDelete: Cascade)
+
+  type              TruckType
+  status            TruckStatus       @default(AVAILABLE)
+  title             String
+  description       String            @db.Text
+
+  // Specifications
+  year              Int
+  make              String
+  model             String
+  capacity          String
+  fuelType          String
+  transmission      String
+  mileage           Int?
+  features          String[]
+
+  // Pricing
+  dailyRate         Float
+  weeklyRate        Float
+  monthlyRate       Float
+
+  // Images
+  images            String[]
+
+  // Location
+  address           String
+  city              String
+  state             String
+  zipCode           String
+  country           String            @default("USA")
+  latitude          Float?
+  longitude         Float?
+
+  // External IDs
+  fleetioVehicleId  String?
+  samsaraDeviceId   String?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  contracts         Contract[]
+  maintenanceRecords MaintenanceRecord[]
+  trackingData      GPSTracking[]
+
+  @@index([vendorId])
+  @@index([type, status])
+  @@index([city, state])
+}
+
+model Contract {
+  id                String            @id @default(cuid())
+
+  customerId        String
+  customer          User              @relation("CustomerContracts", fields: [customerId], references: [id])
+
+  vendorId          String
+  vendor            User              @relation("VendorContracts", fields: [vendorId], references: [id])
+
+  truckId           String
+  truck             Truck             @relation(fields: [truckId], references: [id])
+
+  startDate         DateTime
+  endDate           DateTime
+  totalAmount       Float
+  status            ContractStatus    @default(DRAFT)
+
+  // Digital Signature
+  signedAt          DateTime?
+  signatureUrl      String?
+
+  // Terms
+  terms             String            @db.Text
+
+  // External IDs
+  hubspotDealId     String?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  payments          Payment[]
+  commission        Commission?
+
+  @@index([customerId])
+  @@index([vendorId])
+  @@index([truckId])
+  @@index([status])
+}
+
+model Payment {
+  id                String            @id @default(cuid())
+
+  contractId        String
+  contract          Contract          @relation(fields: [contractId], references: [id])
+
+  customerId        String
+  customer          User              @relation(fields: [customerId], references: [id])
+
+  amount            Float
+  status            PaymentStatus     @default(PENDING)
+  method            PaymentMethod
+
+  // Authorize.net
+  transactionId     String?
+  customerProfileId String?
+  paymentProfileId  String?
+
+  // Recurring
+  isRecurring       Boolean           @default(false)
+  subscriptionId    String?
+  recurringFrequency String?
+  nextPaymentDate   DateTime?
+  recurringEndDate  DateTime?
+
+  processedAt       DateTime?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([contractId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model Commission {
+  id                String            @id @default(cuid())
+
+  contractId        String            @unique
+  contract          Contract          @relation(fields: [contractId], references: [id])
+
+  vendorId          String
+  vendor            VendorProfile     @relation(fields: [vendorId], references: [id])
+
+  rentalAmount      Float
+  commissionRate    Float
+  commissionAmount  Float
+
+  status            CommissionStatus  @default(PENDING)
+  paidAt            DateTime?
+
+  createdAt         DateTime          @default(now())
+
+  @@index([vendorId])
+  @@index([status])
+}
+
+model MaintenanceRecord {
+  id                String              @id @default(cuid())
+
+  truckId           String
+  truck             Truck               @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  vendorId          String
+  vendor            VendorProfile       @relation(fields: [vendorId], references: [id])
+
+  type              String
+  description       String              @db.Text
+  status            MaintenanceStatus   @default(SCHEDULED)
+  priority          MaintenancePriority @default(MEDIUM)
+
+  scheduledDate     DateTime
+  completedDate     DateTime?
+
+  cost              Float?
+  notes             String?             @db.Text
+
+  // Fleetio Integration
+  fleetioId         String?
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([truckId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+model GPSTracking {
+  id                String    @id @default(cuid())
+
+  truckId           String
+  truck             Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  latitude          Float
+  longitude         Float
+  speed             Float
+  heading           Float
+
+  // Samsara
+  samsaraDeviceId   String?
+
+  timestamp         DateTime  @default(now())
+
+  @@index([truckId])
+  @@index([timestamp])
+}

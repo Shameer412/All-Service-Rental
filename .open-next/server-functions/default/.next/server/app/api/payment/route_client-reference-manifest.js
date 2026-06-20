@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/payment/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"D:\\projects\\web\\truck-leasing-platform\\src\\app\\api\\payment\\route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};
